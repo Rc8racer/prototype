@@ -1,0 +1,17 @@
+How Request Flow Works (Step-by-Step)
+
+Client hits:
+GET /api/Products?...
+ASP.NET routing finds ProductsController:
+ProductController.cs:10
+Model binding reads query string and fills action parameters:
+ProductController.cs:21
+Controller creates ProductFilterDto from those parameters:
+ProductController.cs:33
+Controller calls service:
+ProductController.cs:47
+Service builds EF query and applies filters/sort/pagination:
+ProductService.cs:21
+Service returns PagedResult<Product>:
+PagedResult.cs
+Controller returns 200 OK with JSON.

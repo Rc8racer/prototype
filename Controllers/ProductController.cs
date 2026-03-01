@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WorkLog.API.Data;
+using WorkLog.API.DTOs;
 using WorkLog.API.Models;
-using WorkLog.API.Helpers;
+using WorkLog.API.Services.Interfaces;
 
 namespace WorkLog.API.Controllers;
 
@@ -10,101 +9,82 @@ namespace WorkLog.API.Controllers;
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IProductService _productService;
 
-    public ProductsController(AppDbContext context)
+    public ProductsController(IProductService productService)
     {
-        _context = context;
+        _productService = productService;
     }
 
-    // ============================================================
-    // GET: api/products (With Pagination)
-    // ============================================================
+    // Returns a paged product list with filter and sort options from query string.
     [HttpGet]
-    public async Task<ActionResult<PagedResult<Product>>> GetProducts(
-        [FromQuery] PaginationParams paginationParams)
+    public async Task<IActionResult> GetProducts(
+        [FromQuery] string? search,
+        [FromQuery] string? brand,
+        [FromQuery] string? category,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
+        [FromQuery] bool? isAvailable,
+        [FromQuery] string? sortBy = "Id",
+        [FromQuery] bool desc = false,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var query = _context.Products.AsQueryable();
+        var filter = new ProductFilterDto
+        {
+            Search = search,
+            Brand = brand,
+            Category = category,
+            MinPrice = minPrice,
+            MaxPrice = maxPrice,
+            IsAvailable = isAvailable,
+            SortBy = sortBy,
+            Desc = desc,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
 
-        var result = await PaginationHelper.CreateAsync(
-            query,
-            paginationParams.PageNumber,
-            paginationParams.PageSize);
-
+        var result = await _productService.GetProductsAsync(filter);
         return Ok(result);
     }
 
-    // ============================================================
-    // GET: api/products/{id}
-    // ============================================================
+    // Returns a single product by primary key.
     [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> GetProduct(int id)
+    public async Task<IActionResult> GetProduct(int id)
     {
-        var product = await _context.Products.FindAsync(id);
-
-        if (product is null)
+        var product = await _productService.GetByIdAsync(id);
+        if (product == null)
             return NotFound();
 
-        return product;
+        return Ok(product);
     }
 
-    // ============================================================
-    // POST: api/products
-    // ============================================================
+    // Creates a product and returns its resource location.
     [HttpPost]
-    public async Task<ActionResult<Product>> CreateProduct(Product product)
+    public async Task<IActionResult> CreateProduct(Product product)
     {
-        // Prevent identity insert errors if client sends an Id.
-        product.Id = 0;
-
-        if (product.CreatedOn == default)
-            product.CreatedOn = DateTime.UtcNow;
-
-        _context.Products.Add(product);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+        var created = await _productService.CreateAsync(product);
+        return CreatedAtAction(nameof(GetProduct), new { id = created.Id }, created);
     }
 
-    // ============================================================
-    // PUT: api/products/{id}
-    // ============================================================
+    // Replaces an existing product by id.
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateProduct(int id, Product product)
     {
-        if (id != product.Id)
+        var success = await _productService.UpdateAsync(id, product);
+        if (!success)
             return BadRequest();
-
-        _context.Entry(product).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await _context.Products.AnyAsync(p => p.Id == id))
-                return NotFound();
-
-            throw;
-        }
 
         return NoContent();
     }
 
-    // ============================================================
-    // DELETE: api/products/{id}
-    // ============================================================
+    // Deletes a product by id.
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-        var product = await _context.Products.FindAsync(id);
-
-        if (product is null)
+        var success = await _productService.DeleteAsync(id);
+        if (!success)
             return NotFound();
-
-        _context.Products.Remove(product);
-        await _context.SaveChangesAsync();
 
         return NoContent();
     }

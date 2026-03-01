@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WorkLog.API.Data;
+using WorkLog.API.Services;
+using WorkLog.API.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Enables attribute-routed controllers (e.g., EmployeesController).
 builder.Services.AddControllers();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 var app = builder.Build();
 
