@@ -15,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Enables attribute-routed controllers (e.g., EmployeesController).
 builder.Services.AddControllers();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 
 var app = builder.Build();

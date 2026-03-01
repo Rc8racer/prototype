@@ -8,8 +8,18 @@ public class Employee
     public int Id { get; set; }
 
     [Required]
-    [MaxLength(120)]
-    public string Name { get; set; } = string.Empty;
+    [MaxLength(100)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string LastName { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string Role { get; set; } = string.Empty;
+
+    public DateTime? JoinedDate { get; set; }
 
     [Required]
     [EmailAddress]
@@ -19,15 +29,11 @@ public class Employee
     [MaxLength(20)]
     public string? PhoneNumber { get; set; }
 
-    [MaxLength(100)]
-    public string? Department { get; set; }
+    [MaxLength(20)]
+    public string? AlternateNumber { get; set; }
 
-    [MaxLength(100)]
-    public string? Designation { get; set; }
-
-    public DateTime? HireDate { get; set; }
-
-    public bool IsActive { get; set; } = true;
+    [MaxLength(10)]
+    public string? BloodGroup { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

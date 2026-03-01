@@ -1,0 +1,114 @@
+BACKEND RUN FLOW (WORKLOG.API)
+Date: 2026-03-02
+
+1) App startup flow
+- Entry point: Program.cs
+- Steps at startup:
+  - Read configuration from appsettings.json
+  - Register services in DI container:
+    - AppDbContext (SQL Server)
+    - IProductService -> ProductService
+    - IEmployeeService -> EmployeeService
+  - Register controllers (`AddControllers`)
+  - Build app pipeline
+  - Map controller routes (`app.MapControllers()`)
+  - Enable Swagger in Development
+  - Start web server (`app.Run()`)
+
+2) Request lifecycle (high level)
+- Client sends HTTP request (example: POST /api/Employees)
+- ASP.NET routing finds matching controller action
+- Model binding converts JSON/query params to C# objects
+- Controller action is invoked
+- Controller calls service method (business logic layer)
+- Service uses AppDbContext (EF Core)
+- EF Core translates LINQ/entity operations to SQL
+- SQL executes on SQL Server
+- Result returns: DB -> EF -> Service -> Controller -> HTTP response
+
+3) Product flow (example paths)
+- List products:
+  - Request: GET /api/Products?...query params...
+  - ProductsController.GetProducts(...)
+  - Create ProductFilterDto from query params
+  - ProductService.GetProductsAsync(filter)
+  - Service applies filter/sort/paging on `_context.Products`
+  - Returns `PagedResult<Product>` to controller
+  - Controller returns 200 OK
+
+- Create product:
+  - Request: POST /api/Products
+  - ProductsController.CreateProduct(product)
+  - ProductService.CreateAsync(product)
+  - Service sets:
+    - Id = 0
+    - CreatedOn = DateTime.UtcNow
+  - `_context.Products.Add(...)` + `SaveChangesAsync()`
+  - Controller returns 201 Created
+
+4) Employee flow (example paths)
+- List employees:
+  - Request: GET /api/Employees?...query params...
+  - EmployeesController.GetEmployees(...)
+  - Create EmployeeFilterDto from query params
+  - EmployeeService.GetEmployeesAsync(filter)
+  - Service applies filter/sort/paging on `_context.Employees`
+  - Returns `PagedResult<Employee>`
+  - Controller returns 200 OK
+
+- Create employee:
+  - Request: POST /api/Employees
+  - EmployeesController.CreateEmployee(employee)
+  - EmployeeService.CreateAsync(employee)
+  - Service sets:
+    - Id = 0
+    - CreatedAt = DateTime.UtcNow
+    - UpdatedAt = null
+  - `_context.Employees.Add(...)` + `SaveChangesAsync()`
+  - Controller returns 201 Created
+
+5) Update and delete flow (common pattern)
+- PUT /api/{entity}/{id}
+  - Controller calls Service.UpdateAsync(id, payload)
+  - Service validates route id == payload id
+  - EF marks entity as modified
+  - SaveChangesAsync
+  - Return 204 NoContent (or 400 if id mismatch)
+
+- DELETE /api/{entity}/{id}
+  - Controller calls Service.DeleteAsync(id)
+  - Service loads entity by id
+  - If not found -> false -> controller returns 404
+  - If found -> remove + SaveChangesAsync -> 204
+
+6) Where database schema comes from
+- AppDbContext defines DbSets:
+  - Employees
+  - Products
+- Migrations define table/column changes over time.
+- `dotnet ef database update` applies pending migrations to SQL Server.
+
+7) Important file map
+- Startup + DI: Program.cs
+- DB context: Data/AppDbContext.cs
+- Controllers:
+  - Controllers/EmployeesController.cs
+  - Controllers/ProductController.cs
+- Services:
+  - Services/EmployeeService.cs
+  - Services/ProductService.cs
+- Service contracts:
+  - Services/interface/IEmployeeService.cs
+  - Services/interface/IProductService.cs
+- Models:
+  - Models/Employee.cs
+  - Models/Product.cs
+- DTOs:
+  - DTOs/EmployeeFilterDto.cs
+  - DTOs/ProductFilterDto.cs
+  - DTOs/PagedResult.cs
+- Migrations:
+  - Migrations/*.cs
+
+8) One-line architecture summary
+- Controller handles HTTP, Service handles business/query logic, DbContext/EF handles SQL persistence.

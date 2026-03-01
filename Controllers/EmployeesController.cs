@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WorkLog.API.Data;
+using WorkLog.API.DTOs;
 using WorkLog.API.Models;
+using WorkLog.API.Services.Interfaces;
 
 namespace WorkLog.API.Controllers;
 
@@ -9,36 +9,81 @@ namespace WorkLog.API.Controllers;
 [Route("api/[controller]")]
 public class EmployeesController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IEmployeeService _employeeService;
 
-    public EmployeesController(AppDbContext context)
+    public EmployeesController(IEmployeeService employeeService)
     {
-        _context = context;
+        _employeeService = employeeService;
     }
 
-    // Returns all employee rows from the Employees table.
+    // Returns a paged employee list with filter and sort options from query string.
     [HttpGet]
-    public async Task<IActionResult> GetEmployees()
+    public async Task<IActionResult> GetEmployees(
+        [FromQuery] string? search,
+        [FromQuery] string? role,
+        [FromQuery] string? bloodGroup,
+        [FromQuery] DateTime? joinedFrom,
+        [FromQuery] DateTime? joinedTo,
+        [FromQuery] string? sortBy = "Id",
+        [FromQuery] bool desc = false,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var employees = await _context.Employees.ToListAsync();
-        return Ok(employees);
+        var filter = new EmployeeFilterDto
+        {
+            Search = search,
+            Role = role,
+            BloodGroup = bloodGroup,
+            JoinedFrom = joinedFrom,
+            JoinedTo = joinedTo,
+            SortBy = sortBy,
+            Desc = desc,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        var result = await _employeeService.GetEmployeesAsync(filter);
+        return Ok(result);
     }
 
-    // Creates a new employee row.
+    // Returns a single employee by primary key.
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetEmployee(int id)
+    {
+        var employee = await _employeeService.GetByIdAsync(id);
+        if (employee == null)
+            return NotFound();
+
+        return Ok(employee);
+    }
+
+    // Creates an employee and returns its resource location.
     [HttpPost]
     public async Task<IActionResult> CreateEmployee(Employee employee)
     {
-        // Set CreatedAt server-side when client doesn't provide a value.
-        if (employee.CreatedAt == default)
-        {
-            employee.CreatedAt = DateTime.UtcNow;
-        }
+        var created = await _employeeService.CreateAsync(employee);
+        return CreatedAtAction(nameof(GetEmployee), new { id = created.Id }, created);
+    }
 
-        // New records start with no update timestamp.
-        employee.UpdatedAt = null;
+    // Replaces an existing employee by id.
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateEmployee(int id, Employee employee)
+    {
+        var success = await _employeeService.UpdateAsync(id, employee);
+        if (!success)
+            return BadRequest();
 
-        _context.Employees.Add(employee);
-        await _context.SaveChangesAsync();
-        return Ok(employee);
+        return NoContent();
+    }
+
+    // Deletes an employee by id.
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteEmployee(int id)
+    {
+        var success = await _employeeService.DeleteAsync(id);
+        if (!success)
+            return NotFound();
+
+        return NoContent();
     }
 }
